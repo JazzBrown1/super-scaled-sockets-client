@@ -1,0 +1,23 @@
+{
+  "name": "super-scaled-sockets-client",
+  "version": "0.0.1",
+  "description": "See Super Scaled Sockets Server Library",
+  "main": "superScaledSocketsClient.js",
+  "directories": {
+    "example": "examples"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Jazz Brown",
+  "license": "ISC",
+  "dependencies": {},
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "babel-eslint": "^10.0.0",
+    "eslint-config-airbnb": "^17.0.0",
+    "eslint-plugin-import": "^2.11.0",
+    "eslint-plugin-jsx-a11y": "^6.0.3",
+    "eslint-plugin-react": "^7.7.0"
+  }
+}
