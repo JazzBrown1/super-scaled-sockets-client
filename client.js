@@ -66,6 +66,7 @@ const client = (url, prefs, callback__) => {
       this._send({ sys: plCodes.UNSUBSCRIBE, channel: channel });
     },
     _handleDrop: function _handleDrop() {
+      this._connection.close();
       this._connection = null;
       this._setStatus(statusCodes.client.DROPPED_RETRYING);
       this._responseCbs.iterate((cb) => {
@@ -172,6 +173,7 @@ const client = (url, prefs, callback__) => {
         this._prefs.retryAttempts || 0,
         this._prefs.retryInterval || 5000,
         statusCodes.client.DROPPED_RETRYING,
+        statusCodes.client.RETRY_INTERVAL,
         statusCodes.client.RECONNECT_FAILED,
         statusCodes.client.SYNCING,
         handleReconnect,
@@ -181,16 +183,16 @@ const client = (url, prefs, callback__) => {
         }
       );
     },
-    _connectHandler: function _connectHandler(retrys, interval, retryStatus, failedStatus, successStatus, successCallback, failedCallback) {
+    _connectHandler: function _connectHandler(retrys, interval, retryStatus, waitingStatus, failedStatus, successStatus, successCallback, failedCallback) {
       this._makeConnection((err, connection) => {
         if (!err) {
           this._setStatus(successStatus);
           this._connection = connection;
           successCallback(connection);
         } else {
-          this._setStatus(retryStatus);
           let attempts = 0;
-          const retryInterval = setInterval(() => {
+          const retryFunction = () => {
+            this._setStatus(retryStatus);
             attempts++;
             // will remove the conole logs for propper debug logic at some point
             if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'reconnectionAttempt', reconnectAttempt: attempts });
@@ -199,23 +201,61 @@ const client = (url, prefs, callback__) => {
                 if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'reconnectionSuccessful', message: 'attempt successful' });
                 this._setStatus(successStatus);
                 this._connection = _connection;
-                clearInterval(retryInterval);
                 successCallback(_connection);
               } else if (attempts === retrys) {
                 if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionFailed', message: 'final attempt failed. Unable to esablish connection with server' });
                 this._setStatus(failedStatus);
-                clearInterval(retryInterval);
                 failedCallback(error);
-              } else if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionAttemptFailed', message: `connection attempt ${attempts} attempt failed. Unable to esablish connection with server` });
+              } else {
+                if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionAttemptFailed', message: `connection attempt ${attempts} attempt failed. Unable to esablish connection with server` });
+                this._setStatus(waitingStatus);
+                setTimeout(retryFunction, interval);
+              }
             });
-          }, interval);
+          };
+          setTimeout(retryFunction, interval);
         }
       });
+    },
+    _handleMessage: function _handleMessage(payload) {
+      switch (payload.sys) {
+        case plCodes.FEED:
+          this._handleFeed(payload);
+          break;
+        case plCodes.RESPONSE:
+          this._handleResponse(payload);
+          break;
+        case plCodes.TELL:
+          this._handleTell(payload);
+          break;
+        case plCodes.SUBSCRIBE:
+          this._handleSubscribe(payload);
+          break;
+        case plCodes.BEGIN:
+          if (payload.channel) {
+            const userSub = this._createSubscription(payload.channel, null, payload.lastUid);
+            this._setStatus(statusCodes.client.READY);
+            this._onConnect(null, userSub);
+          } else {
+            this._setStatus(statusCodes.client.READY);
+            this._onConnect(null, null);
+          }
+          break;
+        case plCodes.SYNC:
+          payload.records.forEach((record) => {
+            this._handleFeed(record);
+          });
+          this._handleSynced(payload.result);
+          break;
+        default:
+          this._handleError(errors.unknownSys);
+      }
     },
     _makeConnection: function _makeConnection(callback) {
       const connection = new WebSocket(this._url);
       // the on error creates a connection error if the connection is not established
       connection.onerror = () => {
+        connection.close(); // ensure connecion has closed
         callback({ name: 'Start up connection Error', message: 'Error connectiong to websocket server' });
       };
       connection.onopen = () => {
@@ -227,38 +267,7 @@ const client = (url, prefs, callback__) => {
           const payload = JSON.parse(e.data);
           if (this._prefs.logPayload) console.log('SuperScaledSockets', { type: 'serverPayload', payload: payload });
           if (payload.sys) {
-            switch (payload.sys) {
-              case plCodes.FEED:
-                this._handleFeed(payload);
-                break;
-              case plCodes.RESPONSE:
-                this._handleResponse(payload);
-                break;
-              case plCodes.TELL:
-                this._handleTell(payload);
-                break;
-              case plCodes.SUBSCRIBE:
-                this._handleSubscribe(payload);
-                break;
-              case plCodes.BEGIN:
-                if (payload.channel) {
-                  const userSub = this._createSubscription(payload.channel, null, payload.lastUid);
-                  this._setStatus(statusCodes.client.READY);
-                  if (this._onConnect) this._onConnect(null, userSub);
-                } else {
-                  this._setStatus(statusCodes.client.READY);
-                  if (this._onConnect) this._onConnect(null, null);
-                }
-                break;
-              case plCodes.SYNC:
-                payload.records.forEach((record) => {
-                  this._handleFeed(record);
-                });
-                this._handleSynced(payload.result);
-                break;
-              default:
-                this._handleError(errors.unknownSys);
-            }
+            this._handleMessage(payload);
           }
           if (payload.err) {
             this._handleError(payload.err);
@@ -280,8 +289,9 @@ const client = (url, prefs, callback__) => {
         this._prefs.retryAttempts || 0,
         this._prefs.retryInterval || 5000,
         statusCodes.client.START_RETRYING,
+        statusCodes.client.RETRY_INTERVAL,
         statusCodes.client.START_FAILED,
-        statusCodes.client.BEGINING,
+        statusCodes.client.BEGINNING,
         () => {
           this._send({ sys: plCodes.BEGIN });
         },
@@ -297,10 +307,6 @@ const client = (url, prefs, callback__) => {
     },
     onTell: function on(topic, callback) {
       this._listeners[topic] = callback;
-    },
-    onConnect: function onConnect(callback) {
-      this._onConnect = callback;
-      if (this._status === statusCodes.client.READY) callback(this);
     },
     onError: function onError(callback) {
       this._onError = callback;
@@ -336,20 +342,6 @@ const client = (url, prefs, callback__) => {
         this._send({ sys: plCodes.TELL, topic: topic, msg: msg });
         if (callback) callback(null);
       } else if (callback) callback(errors.connectionUnready);
-    },
-    // to be deprecated
-    send: function send(topic, msg, callback) {
-      console.log('SuperScaledSockets', 'client.send is to be deprecated, use client.ask or client.tell instead');
-      if (callback) {
-        this.ask(topic, msg, callback);
-      } else {
-        this.tell(topic, msg);
-      }
-    },
-    // to be deprecated
-    emit: function emit(t, m, c) {
-      console.log('SuperScaledSockets', 'client.emit is to be deprecated, use client.ask or client.tell instead');
-      this.send(t, m, c);
     },
     subscribe: function subscribe(channel, query, callback) {
       if (this._status === statusCodes.client.READY) {

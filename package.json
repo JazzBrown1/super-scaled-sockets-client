@@ -1,6 +1,6 @@
 {
   "name": "super-scaled-sockets-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "See Super Scaled Sockets Server Library",
   "main": "superScaledSocketsClient.js",
   "directories": {

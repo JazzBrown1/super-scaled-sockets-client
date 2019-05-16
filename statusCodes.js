@@ -5,10 +5,11 @@ statusCodes.client = {
   START_RETRYING: 2,
   DROPPED_RETRYING: 3,
   START_FAILED: 4,
-  CONNECTED: 5,
+  RETRY_INTERVAL: 5,
   RECONNECT_FAILED: 6,
   READY: 7,
-  SYNCING: 8
+  SYNCING: 8,
+  BEGINNING: 9
 };
 
 statusCodes.subscription = {
