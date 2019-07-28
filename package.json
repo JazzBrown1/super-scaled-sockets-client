@@ -10,16 +10,12 @@
   },
   "author": "Jazz Brown",
   "license": "ISC",
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
     "babel-eslint": "^10.0.0",
+    "docdash": "^1.1.1",
     "eslint": "^5.16.0",
     "eslint-config-airbnb": "^17.0.0",
-    "eslint-plugin-import": "^2.11.0",
-    "eslint-plugin-jsx-a11y": "^6.0.3",
-    "eslint-plugin-react": "^7.7.0",
-    "jsdoc": "^3.6.2",
-    "docdash": "^1.1.1"
+    "jsdoc": "^3.6.3"
   }
 }
