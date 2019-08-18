@@ -2,6 +2,7 @@ import statusCodes from './statusCodes';
 
 /** Class Instance returned when a subscription request is successful
  *  @hideconstructor
+ * @memberof super-scaled-sockets-client
  */
 class Subscription {
   constructor(client, channel, id) {
@@ -14,9 +15,9 @@ class Subscription {
     this._listeners = {};
   }
 
-  _handleFeed(topic, msg) {
+  _handleFeed(topic, msg, uid) {
     if (this._listeners[topic]) {
-      this._listeners[topic](msg);
+      this._listeners[topic](msg, uid);
     }
   }
 
@@ -33,10 +34,10 @@ class Subscription {
     if (status) this._setStatus(status);
   }
   /**
-   * Callback function that is called when a subscription message is recieved from the server.
+   * Callback function that is called when a subscription message is received from the server.
    *
    * @callback onSubscriptionMessageCallback
-   * @param {any} msg - Message recieved from the server.
+   * @param {any} msg - Message received from the server.
    */
 
   /**
@@ -76,7 +77,7 @@ class Subscription {
   }
 
   /**
-  * Listener for subscition status changes.
+  * Listener for subscription status changes.
   * @param {onStatusChangeCallback} callback The function called with the updated status.
   */
   onStatusChange(callback) {

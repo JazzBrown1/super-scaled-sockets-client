@@ -4,17 +4,17 @@ import plCodes from './plCodes';
 import Subscription from './subscription';
 
 const errors = {
-  unknownSys: { name: 'Unknown payload type', message: 'Unknown payload type recieved from the server' },
-  resIdNoMatch: { name: 'Recieved response with an unknown message ID', message: 'Unexpected Error: Response Id not in Id array' },
-  unknownSubscription: { name: 'Recieved message for unsubscribed channel', message: 'Unknown channel on sub message sent from server' },
-  connectionDropped: { name: 'Connection droped', message: 'The connection dropped, unable to send message' },
+  unknownSys: { name: 'Unknown payload type', message: 'Unknown payload type received from the server' },
+  resIdNoMatch: { name: 'Received response with an unknown message ID', message: 'Unexpected Error: Response Id not in Id array' },
+  unknownSubscription: { name: 'Received message for unsubscribed channel', message: 'Unknown channel on sub message sent from server' },
+  connectionDropped: { name: 'Connection dropped', message: 'The connection dropped, unable to send message' },
   connectionUnready: { name: 'Connection not ready', message: 'The connection not ready, unable to send message' },
   channelSync: { name: 'Unable to sync', message: 'Unable to sync the channel' },
-  unknownChannel: { name: 'Uknown channel', message: 'Recieved payload for unknown channel' },
+  unknownChannel: { name: 'Unknown channel', message: 'Received payload for unknown channel' },
   subMissing: { name: 'Cannot Locate Subscription', message: 'During unsubscribe process unable to locate subscription in subs stash' },
   channelMissing: { name: 'Cannot locate channel', message: 'During unsubscribe process unable to locate channel in channel object' },
   connectionFailed: { name: 'Unable to connect to the server', message: 'Unable to establish a connection with the WebSockets Error' },
-  channeNameNotAllowed: { name: 'Channel name not allowed', message: 'Must be "A-Z 0-9 - _" with no spaces and no leading underscores' },
+  channelNameNotAllowed: { name: 'Channel name not allowed', message: 'Must be "A-Z 0-9 - _" with no spaces and no leading underscores' },
 };
 
 const defaults = {
@@ -25,7 +25,7 @@ const defaults = {
 };
 
 const applyPrefs = (prefs) => {
-  const _prefs = Object.assign({}, defaults);
+  const _prefs = { ...defaults };
   Object.keys(prefs).forEach((key) => {
     if (_prefs[key] !== undefined) _prefs[key] = prefs[key];
     else console.log('SuperScaledSockets', `Unknown preference name '${key}' passed to server`);
@@ -36,6 +36,8 @@ const applyPrefs = (prefs) => {
 
 /** Class Instance returned by the client() call in the super-scaled-sockets-client module
  *  @hideconstructor
+ * @memberof super-scaled-sockets-client
+
  */
 class Client {
   constructor(url, prefs) {
@@ -166,7 +168,7 @@ class Client {
     if (this._channels[payload.channel]) {
       this._channels[payload.channel].lastUid = payload.uid;
       this._channels[payload.channel].subscriptions.iterate((subscription) => {
-        subscription._handleFeed(payload.topic, payload.msg);
+        subscription._handleFeed(payload.topic, payload.msg, payload.uid);
       });
     } else {
       this._handleError(errors.unknownChannel);
@@ -232,7 +234,7 @@ class Client {
     const go = () => {
       if (attempt !== 0) this._setStatus(retryStatus);
       attempt++;
-      // will remove the conole logs for propper debug logic at some point
+      // will remove the console logs for proper debug logic at some point
       if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionAttempt', reconnectAttempt: attempt });
       this._makeConnection((error, _connection) => {
         if (!error) {
@@ -241,11 +243,11 @@ class Client {
           this._connection = _connection;
           successCallback(_connection);
         } else if (attempt === attempts) {
-          if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionFailed', message: 'final attempt failed. Unable to esablish connection with server' });
+          if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionFailed', message: 'final attempt failed. Unable to establish connection with server' });
           this._setStatus(failedStatus);
           failedCallback(error);
         } else {
-          if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionAttemptFailed', message: `connection attempt ${attempt} attempt failed. Unable to esablish connection with server` });
+          if (this._prefs.logReconnection) console.log('SuperScaledSockets', { type: 'connectionAttemptFailed', message: `connection attempt ${attempt} attempt failed. Unable to establish connection with server` });
           this._setStatus(waitingStatus);
           setTimeout(go, interval);
         }
@@ -269,7 +271,7 @@ class Client {
           this._setStatus(statusCodes.client.READY);
           this._onConnect(null, null);
         }
-        this._msgQueue.forEach(_payload => this._handleMessage(_payload));
+        this._msgQueue.forEach((_payload) => this._handleMessage(_payload));
         this._msgQueue.length = 0;
         break;
       case plCodes.SYNC:
@@ -277,7 +279,7 @@ class Client {
           this._handleFeed(record);
         });
         this._handleSyncComplete(payload.result);
-        this._msgQueue.forEach(_payload => this._handleMessage(_payload));
+        this._msgQueue.forEach((_payload) => this._handleMessage(_payload));
         this._msgQueue.length = 0;
         break;
       default:
@@ -333,7 +335,7 @@ class Client {
   _handleHeartbeat() {
     clearTimeout(this._hbTimeout);
     this._hbTimeout = setTimeout(() => {
-      this._connection.close(4100, 'The socket did not recieve a heartbeat');
+      this._connection.close(4100, 'The socket did not receive a heartbeat');
     }, this._hbInterval);
   }
 
@@ -341,7 +343,7 @@ class Client {
     const connection = new WebSocket(this._url);
     // the on error creates a connection error if the connection is not established
     connection.onerror = () => {
-      connection.close(4999, 'ignore'); // ensure connecion has closed
+      connection.close(4999, 'ignore'); // ensure connection has closed
       callback(true, null);
     };
     connection.onopen = () => {
@@ -377,7 +379,7 @@ class Client {
             this._handleClose(statusCodes.client.BOOTED, statusCodes.subscription.BOOTED);
             if (this._onBoot) this._onBoot(e.reason);
             break;
-          default: // Inconcistent client generated code usually 1006 on chrome
+          default: // Inconsistent client generated code usually 1006 on chrome
             if (this._prefs.autoReconnect) {
               this._handleClose(statusCodes.client.DROPPED_RETRYING, statusCodes.subscription.DROPPED);
               this._handleReconnect();
@@ -445,7 +447,7 @@ class Client {
   }
 
   /**
-     * Returns the current status of the client conection.
+     * Returns the current status of the client connection.
   * @return {statusCode} The status of the client  as a status code.
   * @example
   * const currentStatus = client.getStatus();
@@ -457,10 +459,10 @@ class Client {
   }
 
   /**
-   * Callback function that is called when a message is recieved from the server
+   * Callback function that is called when a message is received from the server
    *
    * @callback onTellCallback
-   * @param {any} msg - Message recieved from the server.
+   * @param {any} msg - Message received from the server.
    */
 
   /**
@@ -476,10 +478,10 @@ class Client {
     this._tellListeners[topic] = callback;
   }
   /**
-   * Callback function that is called when a message is recieved from the server.
+   * Callback function that is called when a message is received from the server.
    *
    * @callback onBroadcastCallback
-   * @param {any} msg - Message recieved from the server.
+   * @param {any} msg - Message received from the server.
    */
 
   /**
@@ -499,7 +501,7 @@ class Client {
    * Callback function that is called when an error occurs.
    *
    * @callback onErrorCallback
-   * @param {errorObject} error - Message recieved from the server.
+   * @param {errorObject} error - Message received from the server.
    */
 
   /**
@@ -515,14 +517,14 @@ class Client {
   }
 
   /**
-   * Callback function called after a connection dropped and once the connection is reesablished and subscriptions are synced.
+   * Callback function called after a connection dropped and once the connection is reestablished and subscriptions are synced.
    *
    * @callback onReconnectCallback
    */
 
   /**
      * Set the listener for reconnection events reconnect events. Will be called when the connection has dropped and the reconnection attempt was successful.
-  * @param {onReconnectCallback} callback The function called after a connection drop once the connection is re-esablished and subscriptions are synced.
+  * @param {onReconnectCallback} callback The function called after a connection drop once the connection is re-established and subscriptions are synced.
   * @example
   * client.onReconnect(() => {
   *   alert('Successfully reconnected')
@@ -632,7 +634,7 @@ class Client {
   */
   ask(topic, msg, callback) {
     if (this._status === statusCodes.client.READY) {
-      // Should add datetimes to all requests and set a time put to check that responses have been recieved no other way to confrim delivery
+      // Should add datetimes to all requests and set a time put to check that responses have been received no other way to confirm delivery
       // const _id = this._responseCallbacks.put({cb: callback, time: Date.now()})
       const _id = this._responseCallbacks.put(callback);
       this._send({
@@ -671,11 +673,11 @@ class Client {
    *
    * @callback subscribeCallback
    * @param {errorObject} error If there is an error an error object will return, otherwise null.
-   * @param {Subscription} Subscription If succussful a subscription instance will be returned
+   * @param {Subscription} Subscription If successful a subscription instance will be returned
    */
 
   /**
-    * A text string containing only letters, numbers, hyphans and underscores. With no leading hyphans or underscores.
+    * A text string containing only letters, numbers, hyphens and underscores. With no leading hyphens or underscores.
     * @typedef channelName
     */
 
@@ -703,14 +705,15 @@ class Client {
       callback(errors.connectionUnready);
       return;
     }
-    if (!/^(?!_)^[a-zA-Z0-9_-]*$/.test(channel)) {
-      callback(errors.channeNameNotAllowed);
+    if (!/^(?!_)^[a-zA-Z0-9_-]*$/.test(channel) || channel === undefined || channel == null) {
+      callback(errors.channelNameNotAllowed);
       return;
     }
     if (this._channels[channel]) {
       const subscription = this._createSubscription(channel);
       callback(null, subscription);
     } else {
+      console.log('sending sub request, channel: ', channel);
       const _id = this._responseCallbacks.put(callback);
       this._queryStore[_id] = query;
       const _req = {

@@ -3,7 +3,7 @@
         "allowUnknownTags": false
     },
     "source": {
-        "include": "./src",
+        "include": ["./src", "../super-scaled-sockets/src"],
         "includePattern": ".js$",
         "excludePattern": "(node_modules/|docs)"
     },
@@ -23,6 +23,20 @@
       "monospaceLinks": false
   },
   "docdash": {
+    "menu":{
+      "Project Website":{
+            "href":"https://myproject.com",
+            "target":"_blank",
+            "class":"menu-item",
+            "id":"website_link"
+        },
+      "Forum":{
+          "href":"https://myproject.com.forum",
+          "target":"_blank",
+          "class":"menu-item",
+          "id":"forum_link"
+      }
+    },
     "static":true,
     "search": true,
     "sectionOrder": [
