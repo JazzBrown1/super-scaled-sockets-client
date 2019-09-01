@@ -1,17 +1,23 @@
 {
   "name": "super-scaled-sockets-client",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "WebSockets, on a super scale",
   "repository": {
     "type": "git",
     "url": "https://github.com/JazzBrown1/super-scaled-sockets-client.git"
   },
   "keywords": [
-    "realtime", "websocket", "scaling", "super", "scaled", "sockets", "client"
+    "realtime",
+    "websocket",
+    "scaling",
+    "super",
+    "scaled",
+    "sockets",
+    "client"
   ],
   "bugs": {
-    "url" : "https://github.com/JazzBrown1/super-scaled-sockets-client/issues",
-    "email" : "jazzbrown@tezle.com"
+    "url": "https://github.com/JazzBrown1/super-scaled-sockets-client/issues",
+    "email": "jazzbrown@tezle.com"
   },
   "main": "dist/main.js",
   "module": "dist/module.js",
