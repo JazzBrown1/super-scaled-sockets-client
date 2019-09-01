@@ -19,7 +19,7 @@ const client = (url, options, callback) => {
   return _client;
 };
 
-/** Status codes are interger codes which reperesent the status of a client or subscription
+/** Status codes are integer codes which represent the status of a client or subscription
  * @typedef statusCode
 */
 
@@ -34,8 +34,8 @@ export {
   * @param {object} options - An options object
   * @param {boolean} [options.logReconnection=false] - Whether to show connection logs on the console.log.
   * @param {number} [options.retryAttempts=0] - Maximum connection retry  attempts, if set to 0 will retry infinitely.
-  * @param {number} [options.retryInterval=5000] - Interval between connection retry attempts in milleseconds.
-  * @param {boolean} [options.autoReconnect=true] - Whether to auto recconect on connection drop or failed connection attempt.
+  * @param {number} [options.retryInterval=5000] - Interval between connection retry attempts in milliseconds.
+  * @param {boolean} [options.autoReconnect=true] - Whether to auto reconnect on connection drop or failed connection attempt.
   * @return {Client}
   * @example
   * import sssc from 'super-scaled-sockets-client';

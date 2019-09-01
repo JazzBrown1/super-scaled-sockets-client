@@ -1,4 +1,5 @@
-import sssUtil from './sssUtil';
+import { Stash } from 'jazzy-utility';
+
 import statusCodes from './statusCodes';
 import plCodes from './plCodes';
 import Subscription from './subscription';
@@ -36,8 +37,6 @@ const applyPrefs = (prefs) => {
 
 /** Class Instance returned by the client() call in the super-scaled-sockets-client module
  *  @hideconstructor
- * @memberof super-scaled-sockets-client
-
  */
 class Client {
   constructor(url, prefs) {
@@ -55,7 +54,7 @@ class Client {
     this._onReconnectFail = null;
     this._onStatusChange = null;
     this._channels = {};
-    this._responseCallbacks = new sssUtil.Stash();
+    this._responseCallbacks = new Stash();
     this._queryStore = {};
     this._hbTimeout = null;
     this._hbInterval = 31000;
@@ -68,7 +67,7 @@ class Client {
 
   _createSubscription(channel, query, lastUid) {
     if (!this._channels[channel]) {
-      this._channels[channel] = { query: query, subscriptions: new sssUtil.Stash(), lastUid: lastUid };
+      this._channels[channel] = { query: query, subscriptions: new Stash(), lastUid: lastUid };
     }
     const id = this._channels[channel].subscriptions.put(0);
     const _subscription = new Subscription(this, channel, id);
@@ -93,7 +92,7 @@ class Client {
 
   _removeChannel(channel) {
     if (this._channels[channel]) delete this._channels[channel];
-    this._send({ sys: plCodes.UNSUBSCRIBE, channel: channel });
+    if (this._status === statusCodes.client.READY) this._send({ sys: plCodes.UNSUBSCRIBE, channel: channel });
   }
 
   _handleClose(clientCode, subscriptionCode) {
@@ -301,6 +300,11 @@ class Client {
       case plCodes.SUBSCRIBE:
         this._handleSubscribe(payload);
         break;
+      case plCodes.UPDATESUB:    
+        if (this._channels[payload.channel]) {
+          this._channels[payload.channel].lastUid = payload.uid;
+        }
+        break;
       case plCodes.BEGIN:
         if (payload.prot.hb) {
           this._hbInterval = payload.prot.hbInterval + (payload.prot.hbThreshold || 1000);
@@ -395,22 +399,22 @@ class Client {
   }
 
   /**
-   * Callback function that is called after a connection request is made to the server.
-   *
-   * @callback connectCallback
-   * @param {errorObject} error If there is an error an error object will return, otherwise null.
-   * @param {Subscription} userSubscription Returns a user subscription if one is assigned by the server, otherwise null.
-   */
+  * Callback function that is called after a connection request is made to the server.
+  *
+  * @callback connectCallback
+  * @param {errorObject} error If there is an error an error object will return, otherwise null.
+  * @param {Subscription} userSubscription Returns a user subscription if one is assigned by the server, otherwise null.
+  */
   /**
-     * Connect to the server.
+  * Connect to the server.
   * @param {connectCallback} callback - Callbacks with an error if unable to connect and a user subscription if one is assigned by the server
-    * @example
-    * client.connect((err, userSubscription) => {
-    *   if (err) {
-    *     // handle the error
-    *     return;
-    *   }
-    *   // ........
+  * @example
+  * client.connect((err, userSubscription) => {
+  *   if (err) {
+  *     // handle the error
+  *     return;
+  *   }
+  *   // ........
   */
   connect(callback) {
     this._onConnect = callback;
@@ -447,7 +451,7 @@ class Client {
   }
 
   /**
-     * Returns the current status of the client connection.
+  * Returns the current status of the client connection.
   * @return {statusCode} The status of the client  as a status code.
   * @example
   * const currentStatus = client.getStatus();
@@ -459,11 +463,11 @@ class Client {
   }
 
   /**
-   * Callback function that is called when a message is received from the server
-   *
-   * @callback onTellCallback
-   * @param {any} msg - Message received from the server.
-   */
+  * Callback function that is called when a message is received from the server
+  *
+  * @callback onTellCallback
+  * @param {any} msg - Message received from the server.
+  */
 
   /**
   * Set the listener for tell requests from the server.
@@ -478,14 +482,14 @@ class Client {
     this._tellListeners[topic] = callback;
   }
   /**
-   * Callback function that is called when a message is received from the server.
-   *
-   * @callback onBroadcastCallback
-   * @param {any} msg - Message received from the server.
-   */
+  * Callback function that is called when a message is received from the server.
+  *
+  * @callback onBroadcastCallback
+  * @param {any} msg - Message received from the server.
+  */
 
   /**
-     * Set the listener for broadcasts from the server.
+  * Set the listener for broadcasts from the server.
   * @param {text} topic The topic name to listen for.
   * @param {onBroadcastCallback} callback The function called when an event with the matching topic is heard.
   * @example
@@ -498,14 +502,14 @@ class Client {
   }
 
   /**
-   * Callback function that is called when an error occurs.
-   *
-   * @callback onErrorCallback
-   * @param {errorObject} error - Message received from the server.
-   */
+  * Callback function that is called when an error occurs.
+  *
+  * @callback onErrorCallback
+  * @param {errorObject} error - Message received from the server.
+  */
 
   /**
-     * Set the listener for error events.
+  * Set the listener for error events.
   * @param {onErrorCallback} callback The function called when an error occurs.
   * @example
   * client.onError((err) => {
@@ -517,13 +521,13 @@ class Client {
   }
 
   /**
-   * Callback function called after a connection dropped and once the connection is reestablished and subscriptions are synced.
-   *
-   * @callback onReconnectCallback
-   */
+  * Callback function called after a connection dropped and once the connection is reestablished and subscriptions are synced.
+  *
+  * @callback onReconnectCallback
+  */
 
   /**
-     * Set the listener for reconnection events reconnect events. Will be called when the connection has dropped and the reconnection attempt was successful.
+  * Set the listener for reconnection events reconnect events. Will be called when the connection has dropped and the reconnection attempt was successful.
   * @param {onReconnectCallback} callback The function called after a connection drop once the connection is re-established and subscriptions are synced.
   * @example
   * client.onReconnect(() => {
@@ -535,13 +539,13 @@ class Client {
   }
 
   /**
-   * Callback function called after on a connection drop.
-   *
-   * @callback onDropCallback
-   */
+  * Callback function called after on a connection drop.
+  *
+  * @callback onDropCallback
+  */
 
   /**
-     * Set the listener for connection drop events.
+  * Set the listener for connection drop events.
   * @param {onDropCallback} callback The function called after on a connection drop.
   * @example
   * client.onDrop(() => {
@@ -553,13 +557,13 @@ class Client {
   }
 
   /**
-   * Callback function called when cannot re-establish a connection with the server and the retry attempts are exhausted.
-   *
-   * @callback onReconnectFailCallback
-   */
+  * Callback function called when cannot re-establish a connection with the server and the retry attempts are exhausted.
+  *
+  * @callback onReconnectFailCallback
+  */
 
   /**
-     * Set the listener for failed reconnection events. Called when cannot re-establish a connection with the server and the retry attempts are exhausted.
+  * Set the listener for failed reconnection events. Called when cannot re-establish a connection with the server and the retry attempts are exhausted.
   * @param {onReconnectFailCallback} callback The function called when cannot re-establish a connection with the server and the retry attempts are exhausted.
   * @example
   * client.onReconnectFail(() => {
@@ -571,14 +575,14 @@ class Client {
   }
 
   /**
-   * Callback function called when the client is booted from the server.
-   *
-   * @callback onBootCallback
-   * @param {text} reason Reason defined by the server.
-   */
+  * Callback function called when the client is booted from the server.
+  *
+  * @callback onBootCallback
+  * @param {text} reason Reason defined by the server.
+  */
 
   /**
-     * Set the listener for boot events.
+  * Set the listener for boot events.
   * @param {onBootCallback} callback The function called when the client is booted from the server.
   * @example
   * client.onBoot((reason) => {
@@ -590,15 +594,15 @@ class Client {
   }
 
   /**
-   * Callback function called when the client is booted from the server.
-   *
-   * @callback onStatusChangeCallback
-   * @param {number} newStatus The new status as a status code.
-   * @param {number} previousStatus The previous status as a status code.
-   */
+  * Callback function called when the client is booted from the server.
+  *
+  * @callback onStatusChangeCallback
+  * @param {number} newStatus The new status as a status code.
+  * @param {number} previousStatus The previous status as a status code.
+  */
 
   /**
-     * Set the listener for client status changes.
+  * Set the listener for client status changes.
   * @param {onStatusChangeCallback} callback The function called with the updated status.
   * @example
   * const statusCodes = sssc.statusCodes.client; // Make a reference to the client status codes
@@ -611,15 +615,15 @@ class Client {
   }
 
   /**
-   * Callback function called from an ask request with the response or an error.
-   *
-   * @callback askCallback
-   * @param {errorObject} error If there is an error an error object will return, otherwise null.
-   * @param {any} response The response message from the server.
-   */
+  * Callback function called from an ask request with the response or an error.
+  *
+  * @callback askCallback
+  * @param {errorObject} error If there is an error an error object will return, otherwise null.
+  * @param {any} response The response message from the server.
+  */
 
   /**
-     * Make an ask request to the server. Used when a response is required. If not use client.tell()
+  * Make an ask request to the server. Used when a response is required. If not use client.tell()
   * @param {text} topic The topic of the message. Used for the listener on the server side.
   * @param {any} msg The message to deliver to the server.
   * @param {askCallback} callback The function called with the response or an error.
@@ -646,14 +650,14 @@ class Client {
   }
 
   /**
-   * Callback function called from an ask request with an error if one occurs.
-   *
-   * @callback tellCallback
-   * @param {errorObject} error If there is an error an error object will return, otherwise null.
-   */
+  * Callback function called from an ask request with an error if one occurs.
+  *
+  * @callback tellCallback
+  * @param {errorObject} error If there is an error an error object will return, otherwise null.
+  */
 
   /**
-     * Make a tell request to the server. Used when a response is not required. If a response is required use client.ask()
+  * Make a tell request to the server. Used when a response is not required. If a response is required use client.ask()
   * @param {text} topic The topic of the message. Used for the listener on the server side.
   * @param {any} msg The message to deliver to the server.
   * @param {tellCallback} callback The function called with the an error if one occurs.
@@ -669,20 +673,20 @@ class Client {
   }
 
   /**
-   * Callback function called after a subscription request is made.
-   *
-   * @callback subscribeCallback
-   * @param {errorObject} error If there is an error an error object will return, otherwise null.
-   * @param {Subscription} Subscription If successful a subscription instance will be returned
-   */
+  * Callback function called after a subscription request is made.
+  *
+  * @callback subscribeCallback
+  * @param {errorObject} error If there is an error an error object will return, otherwise null.
+  * @param {Subscription} Subscription If successful a subscription instance will be returned
+  */
 
   /**
-    * A text string containing only letters, numbers, hyphens and underscores. With no leading hyphens or underscores.
-    * @typedef channelName
-    */
+  * A text string containing only letters, numbers, hyphens and underscores. With no leading hyphens or underscores.
+  * @typedef channelName
+  */
 
   /**
-     * Make a subscription request.
+  * Make a subscription request.
   * @param {channelName} channelName The channelName which the client wants to subscribe to.
   * @param {any} query Optional data to transmit which can be used by the subscription parser on the server side.
   * @param {subscribeCallback} callback The function called after a subscription request is made.
